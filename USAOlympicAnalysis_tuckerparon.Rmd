@@ -1,0 +1,125 @@
+---
+title: "United States 2020 Summer Olympics Analysis"
+author: "Tucker Paron"
+date: "March 25, 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Loading the necessary packages
+pacman::p_load(readxl, tidyverse, dplyr, reshape2)
+
+# Read in the data.
+history <- read.csv("data/history.csv")
+country <- read.csv("data/country.csv")
+medals <- read_excel("data/medals.xlsx")
+teams <- read_excel("data/teams.xlsx")
+gender <- read_excel("data/gender.xlsx")
+coaches <- read_excel("data/coaches.xlsx")
+athletes <- read_excel("data/athletes.xlsx")
+
+```
+
+## 2020 Tokyo Olympics Medal Distribution Summary
+```{r medalsSum, echo=FALSE}
+head(medals, 10)
+```
+Looking strictly at medal count, the United States of America led the way in the 2020 (techincally 2021) Summer Olympics in Tokyo with 113 total medals, 39 of which were Gold. The USA was clear of runners-up China by 25 medals, but only earned 1 more Gold.
+
+### By Population...
+```{r medalsPop, echo=FALSE}
+# Data cleaning.
+pop_gdp = subset(country, select=c(Country, Population, GDP_per_capita)) # Isolate country, population, and GDP
+
+US_pop <- pop_gdp$Population[pop_gdp$Country == 'United States of America'] # USA population
+US_gdp <- pop_gdp$GDP_per_capita[pop_gdp$Country == 'United States of America'] # USA GDP
+
+# Get countries with population within 10% of the United States'
+US_pop_similar <- pop_gdp[pop_gdp$Population <= (1.2 * US_pop) & pop_gdp$Population >= (.8 * US_pop),] 
+medals_US_pop_similar <- merge(US_pop_similar, medals, by='Country')
+medals_US_pop_similar
+
+```
+Here we see the United States compared to all other countries with a population size within 20% of their own (ie. smaller than 120% of the US pop. and greater than 80% of the US pop.). As we can see, there is only one other country - Indonesia. When comparing solely by this metric, we are overperforming, with 108 more metals than Indonesia; however, it is important to take into account other aspect such as overall wealth. The United States has a large advantage here wigth a GDP per capita nearly ten times larger than that of Indonesia. It may be helpful to look at countries of similar wealth as they are likely the countries most willing to invest in their athletes.
+
+### By GDP...
+```{r medalsGDP, echo=FALSE}
+# Get countries with GDP within 10% of the United States'
+US_gdp_similar <- pop_gdp[pop_gdp$GDP_per_capita <= (1.2 * US_gdp) & pop_gdp$GDP_per_capita >= (.8 * US_gdp),] 
+medals_US_gdp_similar <- merge(US_gdp_similar, medals, by='Country')
+medals_US_gdp_similar
+```
+When looking at nations with a GDP per capita value within 20% of the United States, we can see the US still appears dominant. Only two of these 6 nations, ranked in the top 25 - Norway and Switzerland, and each had at least 100 fewer medals than the US. It is important to note that while these three nations have similar GDP, the US is vastly larger, meaning there are vastly more athletes to select from. If we were to scale by population, the results could be very different. Switzerland for example, has a population about 40 times smaller than that of the US. If we multiplied the medal count by this scale, we'd get 120. Now this is an unrealistic scale, especially with such as small sample as 3, but it is something to keep in mind - would this smaller countries who boast a similar GDP to the US outperform them if they had similar populations? To see if the US is really dominant (although the results seem fairly clear), lets look at all countries with the samer or larger populations or GDP per capita.
+
+### By Population and GDP...
+```{r medalsPopGDP, echo=FALSE}
+# Get countries with GDP within 10% of the United States'
+US_pop_gdp_larger <- pop_gdp[pop_gdp$Population >= US_pop | pop_gdp$GDP_per_capita >= US_gdp,] 
+medals_US_pop_gdp_larger <- merge(US_pop_gdp_larger, medals, by='Country')
+medals_US_pop_gdp_larger
+```
+Here we again see Norway, but also India and China, the two largest countries based on population. China, as we noticed earlier, is the closest country in terms of Gold medals and overall medals. They do however have 1 billion more people, but do not possess the same wealth (per capita). I suppose the conclusion here is simply that the United States outperforms similarly sized countries and similarly wealthy nations. Unfortunately, as we acknowledged earlier, there are no countries who match the US in terms of GDP per capita and population, so we cannot have a direct comparison. Additonally, these two metrics are certainly not the only things that matter when it comes to producing atheltes, they are simply important measures we can use to compare countries and evaluate relative performance.
+
+Since we can't really get reliable comparisons between countries, maybe we can compare the US to itself. Let's look at the United States medal counts in past Summer Olympics.
+
+
+
+
+
+## Historical Performance
+
+```{r history, echo=FALSE}
+# Clean data
+us_history = history[history$Country == 'USA',] # Just USA medals
+us_history = subset(us_history, select = -c(Athlete)) # Get rid of athlete name
+us_history <- unique(us_history) # Delet duplicate rows to prevent double counting (every member of team gets medal)
+
+# Group by year to get medal counts
+us_history_counts <- us_history %>%
+  group_by(Year) %>%
+  count(Medal)
+
+us_history_counts <- dcast(us_history_counts,Year~Medal) # Reorient dataframe so we can plot
+
+# Add rows for 2016 and 2020
+us_history_counts[nrow(us_history_counts) + 1,] <- list(2016, 46, 37, 38)
+us_history_counts[nrow(us_history_counts) + 1,] <- list(2020, 39, 41, 33)
+us_history_counts$total <- us_history_counts$Gold + us_history_counts$Silver + us_history_counts$Bronze
+
+# Plot
+par(mfrow = c(2,2))
+barplot(us_history_counts$Gold, names.arg = us_history_counts$Year, ylab='Gold Medals', xlab='Year',col='gold')
+barplot(us_history_counts$Silver, names.arg = us_history_counts$Year, ylab='Silver Medals', xlab='Year',col='grey')
+barplot(us_history_counts$Bronze, names.arg = us_history_counts$Year, ylab='Bronze Medals', xlab='Year',col='brown')
+barplot(us_history_counts$total, names.arg = us_history_counts$Year, ylab='Total Medals', xlab='Year',col='green')
+```
+
+As is evident by the barplot above, the 2020 Olympic performance by the United States was about average, if not a bit above average, by their own standard. They earned the third highest ammount of gold medals (39) from their last nine summer olympics. Additionally, they seem to have a relatively standard amount of Silver and a larger amount of Bronze. Looking at the Total Medals barplot, we see similar results. The total medals earned in 2020 is average (or even above average) for the United States in recent history. While these results are not profound, it appears the United States had a typical performance relative to their standards in the 2020 Tokyo Summer games but vastly outperformed other nations who boasted similar populations or similar GDP per capita. As an additional analysis, given the nature of Parity's work (for whom this project is for), we can look at the medals won by individuals by each gender. It is important to not, there will be vastly more medals in this analysis as each member of a winning team gets a medal - the above data only counted 1 medal per team (ie. A relay team of 4 runners counts towards 1 medal for the country, but the gender data would count it as 4 medals, as each runner gets a medal).
+
+### A look into medals by gender
+```{r historyGender, echo=FALSE}
+# Medals by gender since 1900
+us_history_gender_counts <- us_history %>%
+  filter(Year >= 1900) %>%
+  group_by(Gender) %>%
+  count(Medal)
+
+us_history_gender_counts <- dcast(us_history_gender_counts,Gender~Medal) # Reorient dataframe so we can plot
+
+# Medals by gender in 2012
+us_history_gender_counts_2012 <- us_history %>%
+  filter(Year == 2012) %>%
+  group_by(Gender) %>%
+  count(Medal)
+
+us_history_gender_counts_2012 <- dcast(us_history_gender_counts_2012,Gender~Medal) # Reorient dataframe so we can plot
+
+
+par(mfrow = c(1:2))
+barplot(us_history_gender_counts$Gold, names.arg = us_history_gender_counts$Gender, ylab='US Gold Medals since 1900', xlab='Gender',col='gold')
+barplot(us_history_gender_counts_2012$Gold, names.arg = us_history_gender_counts_2012$Gender, ylab='US Gold Medals in 2012', xlab='Gender',col='gold')
+```
+
+As we can see, since 1900 the vast majority of US Olympic medals have gone to men; however, this says more to participation policies than it does to any sort of talent. When women were first allowed to compete in the Olympics (in 1900), only 22 of the 977 athletes were female. This increased steadily over time and we can even see the drastic change in 2012 where there were nearly double the amount of American female medal winners than there were American male. This metric certainly doesn't tell a full story, but it is fascinating to see how female athletes have become accepted by American culter (and now even make up the vast majority of our championing athletes). 
